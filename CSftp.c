@@ -7,6 +7,7 @@
 #include "dir.h"
 #include "login.h"
 #include "usage.h"
+#include "simple.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,13 +18,8 @@
 
 int parse_command(char *);
 int quit();
-int cwd(char *);
-int cdup();
-int type(char *);
-int mode(char *);
-int stru(char *);
-int retr(char *);
 int pasv();
+int retr(char *);
 int nlst(char *);
 
 int newsockfd;
@@ -116,7 +112,6 @@ int main(int argc, char **argv) {
     // returned for the ftp server's data connection
     // printf("Printed %d directory entries\n", listFiles(1, "."));
     // return 0;
-
 }
 
 int parse_command(char *str) {
@@ -124,9 +119,9 @@ int parse_command(char *str) {
   char *argument;
 
   // Extract command and it's argument if exists
-  command = strtok(str, " \n");
+  command = strtok(str, " \r\n");
   if (command != NULL) {
-    argument = strtok(NULL, " \n");
+    argument = strtok(NULL, " \r\n");
   }
 
   if (strcasecmp(command, "USER") == 0)
@@ -141,19 +136,19 @@ int parse_command(char *str) {
   else {
     if (is_logged_in() == 1) {
       if (strcasecmp(command, "CWD") == 0)
-        return cwd(argument);
+        return cwd(newsockfd, argument);
 
       else if (strcasecmp(command, "CDUP") == 0)
-        return cdup();
+        return cdup(newsockfd, init_dir);
 
       else if (strcasecmp(command, "TYPE") == 0)
-        return type(argument);
+        return type(newsockfd, argument);
 
       else if (strcasecmp(command, "MODE") == 0)
-        return mode(argument);
+        return mode(newsockfd, argument);
 
       else if (strcasecmp(command, "STRU") == 0)
-        return stru(argument);
+        return stru(newsockfd, argument);
 
       else if (strcasecmp(command, "RETR") == 0)
         return retr(argument);
@@ -165,7 +160,7 @@ int parse_command(char *str) {
         return nlst(argument);
 
       else {
-        send(newsockfd, "500 Syntax error, command unrecognized and the requested action did not take place.\n", 85, 0);
+        send(newsockfd, "502 Command unrecognized and the requested action did not take place.\n", 70, 0);
         return 1;
       }
     } else {
@@ -184,107 +179,6 @@ int quit() {
   close(newsockfd);
   return -1;
 }
-
-int cwd(char *dir) {
-  printf("CWD command is called\n");
-  char *f;
-  char cpdir[BUFF_SIZE];
-
-  if (dir == NULL){
-    send(newsockfd, "550 Failed to change directory.\n", 33, 0);
-  } else {
-    strcpy(cpdir, dir);
-    f = strtok(dir, "/\n");
-    printf("f: %s\n", f);
-    if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
-      send(newsockfd, "550 Directory cannot start with ../ or ./\n", 43, 0);
-      return 0;
-    }
-
-    f = strtok(NULL, "/\n");
-
-    while(f != NULL){
-      printf("f: %s\n", f);
-      if (strcmp(f, "..") == 0) {
-        send(newsockfd, "550 Directory cannot contain ../\n", 33, 0);
-        return 0;
-      }
-      f = strtok(NULL, "/\n");
-    }
-
-    if (chdir(cpdir) == 0){
-      send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
-    } else {
-      send(newsockfd, "550 Failed to change directory.\n", 33, 0);
-    }
-  }
-  return 0;
-}
-
-int cdup() {
-  printf("CDUP command is called\n");
-  char current_dir[BUFF_SIZE];
-
-  getcwd(current_dir, BUFF_SIZE);
-  if (strcmp(current_dir, init_dir) == 0){
-    send(newsockfd, "550 Not permitted to access parent of root directory.\n", 55, 0);
-  } else {
-    if (chdir("..") == 0){
-      send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
-    } else {
-      send(newsockfd, "550 Failed to change directory.\n", 33, 0);
-    }
-  }
-  return 0;
-}
-
-int type(char *rept) {
-  printf("TYPE command is called\n");
-  if (rept == NULL) {
-    send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
-  }
-  else if (strcmp(rept, "I") == 0) {
-    send(newsockfd, "200 Switching to Binary mode.\n", 31, 0);
-  } else if (strcmp(rept, "A") == 0){
-    send(newsockfd, "200 Switching to ASCII mode.\n", 30, 0);
-  } else {
-    send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
-  }
-  return 0;
-}
-
-int mode(char *transm) {
-  printf("MODE command is called\n");
-  if (transm == NULL){
-    send(newsockfd, "504 Bad MODE command.\n", 23, 0);
-  } else if (strcmp(transm, "S") == 0){
-    send(newsockfd, "200 Mode set to S.\n", 20, 0);
-  } else if (strcmp(transm, "B") == 0){
-    send(newsockfd, "504 MODE Block is not supported.\n", 34, 0);
-  } else if (strcmp(transm, "C") == 0){
-    send(newsockfd, "504 MODE Compressed is not supported.\n", 39, 0);
-  } else {
-    send(newsockfd, "504 Bad MODE command.\n", 23, 0);
-  }
-  return 0;
-}
-
-int stru(char *filestrt) {
-  printf("STRU command is called\n");
-  if (filestrt == NULL){
-    send(newsockfd, "504 Bad STRU command.\n", 23, 0);
-  } else if (strcmp(filestrt, "F") == 0){ // FILE
-    send(newsockfd, "200 Structure set to F.\n", 25, 0);
-  } else if (strcmp(filestrt, "R") == 0){ // RECORD
-    send(newsockfd, "504 STRU Record is not supported.\n", 35, 0);
-  } else if (strcmp(filestrt, "P") == 0){ // PAGE
-    send(newsockfd, "504 STRU Page is not supported.\n", 33, 0);
-  } else {
-    send(newsockfd, "504 Bad STRU command.\n", 23, 0);
-  }
-  return 0;
-}
-
 
 void *pasv_connection(int pasvsockfd){
   struct sockaddr_in pasv_cli_addr;
@@ -347,7 +241,7 @@ int pasv() {
   return 0;
 }
 
-int nlst(char *x) {
+int nlst(char *path) {
   printf("NLST command is called\n");
   char dir[BUFF_SIZE];
 
@@ -357,14 +251,13 @@ int nlst(char *x) {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
     printf("PASV connection is established.\n");
 
-    if (x == NULL){
+    if (path == NULL){
       getcwd(dir, BUFF_SIZE);
     } else {
-      strcpy(dir, x);
+      strcpy(dir, path);
     }
 
     send(newsockfd, "150 Here comes the directory listing.\n", 39, 0);
-
     listFiles(pasvnewsockfd, dir);
     send(newsockfd, "226 Directory send OK.\n", 24, 0);
     pasv_called = 0;
@@ -376,8 +269,48 @@ int nlst(char *x) {
 }
 
 
-int retr(char *x) {
+int retr(char *fname) {
   printf("RETR command is called\n");
+  char msg[BUFF_SIZE];
+  int bytes_read;
+  FILE *fs;
+  int fs_block_size;
+  char sdbuf[BUFF_SIZE * 2];
+  int count = 0;
 
+  if (pasv_called == 0){
+    send(newsockfd, "425 Use PASV first.\n", 21, 0);
+  } else{
+    while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
+    printf("PASV connection is established.\n");
+    if (fname == NULL){
+      send(newsockfd, "550 Failed to open file.\n", 26, 0);
+    } else{
+      if (access(fname, R_OK) != -1){
+        // Read and send data
+        fs = fopen(fname, "r");
+        bzero(sdbuf, BUFF_SIZE * 2);
+        while((fs_block_size = fread(sdbuf, sizeof(char), BUFF_SIZE * 2, fs)) > 0){
+          printf("fs_block_size: %d\n", fs_block_size);
+          count += fs_block_size;
+          if (send(pasvnewsockfd, sdbuf, fs_block_size, 0) < 0){
+            printf("(PASV) Error while sending data.\n");
+          }
+          bzero(sdbuf, BUFF_SIZE * 2);
+        }
+        close(fs);
+
+        sprintf(msg, "150 Opening BINARY mode data connection for %s (%d bytes).\n", fname, count);
+        send(newsockfd, msg, strlen(msg), 0);
+
+        send(newsockfd, "226 Transfer complete.\n", 24, 0);
+        pasv_called = 0;
+        close(pasvnewsockfd);
+        pasvnewsockfd = -1;
+      } else{
+        send(newsockfd, "550 Failed to open file.\n", 26, 0);
+      }
+    }
+  }
   return 0;
 }
