@@ -354,10 +354,17 @@ int nlst(char *x) {
   if (pasv_called == 0){
     send(newsockfd, "425 Use PASV first.\n", 21, 0);
   } else {
-    while(pasvnewsockfd == -1);
+    while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
     printf("PASV connection is established.\n");
+
+    if (x == NULL){
+      getcwd(dir, BUFF_SIZE);
+    } else {
+      strcpy(dir, x);
+    }
+
     send(newsockfd, "150 Here comes the directory listing.\n", 39, 0);
-    getcwd(dir, BUFF_SIZE);
+
     listFiles(pasvnewsockfd, dir);
     send(newsockfd, "226 Directory send OK.\n", 24, 0);
     pasv_called = 0;
