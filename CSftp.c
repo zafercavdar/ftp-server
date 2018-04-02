@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "dir.h"
+#include "login.h"
 #include "usage.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -13,11 +14,9 @@
 #define BUFF_SIZE 256
 
 int parse_command(char *);
-int user(char *);
-int pass(char *);
 int quit();
 int cwd(char *);
-int cdup(char *);
+int cdup();
 int type(char *);
 int mode(char *);
 int stru(char *);
@@ -25,16 +24,8 @@ int retr(char *);
 int pasv();
 int nlst(char *);
 
-
-void val_check(int val, char *msg) {
-  if (val < 0) {
-      printf("Error on %s\n", msg);
-      exit(-1);
-  }
-}
-
 int newsockfd;
-int logged_in = 0;
+char init_dir[BUFF_SIZE];
 
 // Here is an example of how to use the above function. It also shows
 // one how to get the arguments passed on the command line.
@@ -43,7 +34,6 @@ int main(int argc, char **argv) {
     // This is some sample code feel free to delete it
     // This is the main program for the thread version of nc
 
-    int val;
     int port;
     struct sockaddr_in serv_addr, cli_addr;
     int sockfd, clilen;
@@ -62,9 +52,15 @@ int main(int argc, char **argv) {
       return -1;
     }
 
+    // Save the initial working directory
+    getcwd(init_dir, BUFF_SIZE);
+
     printf("Opening socket ...\n");
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    val_check(sockfd, "opening socket");
+    if (sockfd < 0) {
+      printf("Error on opening socket.\n");
+      exit(-1);
+    }
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -72,8 +68,10 @@ int main(int argc, char **argv) {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
     printf("Binding to port %d\n", port);
-    val = bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-    val_check(val, "on binding");
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+      printf("Error on binding.\n");
+      exit(-1);
+    }
 
     while(1) {
       printf("Started listening\n");
@@ -87,8 +85,6 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      logged_in = 0;
-
       printf("Sending 220 Message\n");
       if(send(newsockfd, "220 FTP server ready.\n", 22, 0) < 0) {
         printf("Error on sending 220\n");
@@ -98,15 +94,14 @@ int main(int argc, char **argv) {
       while (1) {
         printf("Reading from socket\n");
         bzero(buffer, BUFF_SIZE);
-        val = recv(newsockfd, buffer, BUFF_SIZE - 1, 0);
-        if (val < 0 || strcmp(buffer, "") == 0) {
+        if (recv(newsockfd, buffer, BUFF_SIZE - 1, 0) < 0 || strcmp(buffer, "") == 0) {
           printf("Error while reading from socket\n");
+          close(newsockfd);
+          logout();
           break;
         }
         printf("Message: %s\n", buffer);
-        val = parse_command(buffer);
-        if (val == -1) { // QUIT returns -1
-          close(newsockfd);
+        if (parse_command(buffer) == -1) { // QUIT returns -1
           break;
         }
       }
@@ -131,79 +126,58 @@ int parse_command(char *str) {
   }
 
   if (strcasecmp(command, "USER") == 0)
-    return user(argument);
+    return user(newsockfd, argument);
 
   else if (strcasecmp(command, "PASS") == 0)
-    return pass(argument);
+    return pass(newsockfd, argument);
 
   else if (strcasecmp(command, "QUIT") == 0)
     return quit();
 
-  else if (strcasecmp(command, "CWD") == 0)
-    return cwd(argument);
-
-  else if (strcasecmp(command, "CDUP") == 0)
-    return cdup(argument);
-
-  else if (strcasecmp(command, "TYPE") == 0)
-    return type(argument);
-
-  else if (strcasecmp(command, "MODE") == 0)
-    return mode(argument);
-
-  else if (strcasecmp(command, "STRU") == 0)
-    return stru(argument);
-
-  else if (strcasecmp(command, "RETR") == 0)
-    return retr(argument);
-
-  else if (strcasecmp(command, "PASV") == 0)
-    return pasv();
-
-  else if (strcasecmp(command, "NLST") == 0)
-    return nlst(argument);
-
   else {
-    send(newsockfd, "500 Syntax error, command unrecognized and the requested action did not take place.\n", 85, 0);
-    return 1;
-  }
+    if (is_logged_in() == 1) {
+      if (strcasecmp(command, "CWD") == 0)
+        return cwd(argument);
 
-}
+      else if (strcasecmp(command, "CDUP") == 0)
+        return cdup();
 
-// TODO: FUNCTION DEFINITION
-//
-int user(char *username) {
-  printf("USER command is called\n");
-  if (logged_in == 1) {
-    send(newsockfd, "530 Can't change user when logged in.\n", 39, 0);
-  } else {
-    if (strcmp(username, "cs317") == 0) {
-      logged_in = 1;
-      send(newsockfd, "230 Login successful.\n", 22, 0);
+      else if (strcasecmp(command, "TYPE") == 0)
+        return type(argument);
+
+      else if (strcasecmp(command, "MODE") == 0)
+        return mode(argument);
+
+      else if (strcasecmp(command, "STRU") == 0)
+        return stru(argument);
+
+      else if (strcasecmp(command, "RETR") == 0)
+        return retr(argument);
+
+      else if (strcasecmp(command, "PASV") == 0)
+        return pasv();
+
+      else if (strcasecmp(command, "NLST") == 0)
+        return nlst(argument);
+
+      else {
+        send(newsockfd, "500 Syntax error, command unrecognized and the requested action did not take place.\n", 85, 0);
+        return 1;
+      }
     } else {
-      send(newsockfd, "530 This server is cs317 only.\n", 31, 0);
+      send(newsockfd, "503 Login with USER first.\n", 27, 0);
+      return 0;
     }
   }
-  return 0;
-}
-
-// TODO: FUNCTION DEFINITION
-//
-int pass(char * pw) {
-  printf("PASS command is called\n");
-  if (logged_in == 0) {
-    send(newsockfd, "503 Login with USER first.\n", 27, 0);
-  } else {
-    send(newsockfd, "230 Already logged in.\n", 23, 0);
-  }
-  return 0;
 }
 
 // TODO: FUNCTION DEFINITION
 //
 int quit() {
   printf("QUIT command is called\n");
+  logout();
   send(newsockfd, "221 Goodbye.\n", 14, 0);
+  close(newsockfd);
   return -1;
 }
 
@@ -211,32 +185,81 @@ int quit() {
 //
 int cwd(char *dir) {
   printf("CWD command is called\n");
+  char *f;
+  f = strtok(dir, "/\n");
+  printf("f: %s\n", f);
+  if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
+    send(newsockfd, "550 Directory cannot start with ../ or ./\n", 43, 0);
+    return 0;
+  }
 
+  f = strtok(NULL, "/\n");
 
+  while(f != NULL){
+    printf("f: %s\n", f);
+    if (strcmp(f, "..") == 0) {
+      send(newsockfd, "550 Directory cannot contain ../\n", 33, 0);
+      return 0;
+    }
+    f = strtok(NULL, "/\n");
+  }
+
+  if (chdir(dir) == 0){
+    send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
+  } else {
+    send(newsockfd, "550 Failed to change directory.\n", 33, 0);
+  }
+  return 0;
 }
 
 // TODO: FUNCTION DEFINITION
 //
-int cdup(char *dir) {
+int cdup() {
   printf("CDUP command is called\n");
+  char current_dir[BUFF_SIZE];
 
-
+  getcwd(current_dir, BUFF_SIZE);
+  if (strcmp(current_dir, init_dir) == 0){
+    send(newsockfd, "550 Not permitted to access parent of root directory.\n", 55, 0);
+  } else {
+    if (chdir("..") == 0){
+      send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
+    } else {
+      send(newsockfd, "550 Failed to change directory.\n", 33, 0);
+    }
+  }
+  return 0;
 }
 
 // TODO: FUNCTION DEFINITION
 //
-int type(char *type) {
+int type(char *t) {
   printf("TYPE command is called\n");
-
-
+  if (t == NULL) {
+    send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
+  }
+  else if (strcmp(t, "I") == 0) {
+    send(newsockfd, "200 Switching to Binary mode.\n", 31, 0);
+  } else if (strcmp(t, "A") == 0){
+    send(newsockfd, "200 Switching to ASCII mode.\n", 30, 0);
+  } else {
+    send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
+  }
+  return 0;
 }
 
 // TODO: FUNCTION DEFINITION
 //
-int mode(char *mode) {
+int mode(char *m) {
   printf("MODE command is called\n");
-
-
+  if (m == NULL){
+    send(newsockfd, "504 Bad MODE command.\n", 23, 0);
+  } else if (strcmp(m, "S") == 0){
+    send(newsockfd, "200 Mode set to S.\n", 20, 0);
+  } else {
+    send(newsockfd, "504 Bad MODE command.\n", 23, 0);
+  }
+  return 0;
 }
 
 // TODO: FUNCTION DEFINITION
