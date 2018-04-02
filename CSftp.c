@@ -171,8 +171,6 @@ int parse_command(char *str) {
   }
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int quit() {
   printf("QUIT command is called\n");
   logout();
@@ -181,8 +179,6 @@ int quit() {
   return -1;
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int cwd(char *dir) {
   printf("CWD command is called\n");
   char *f;
@@ -212,8 +208,6 @@ int cwd(char *dir) {
   return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int cdup() {
   printf("CDUP command is called\n");
   char current_dir[BUFF_SIZE];
@@ -231,16 +225,14 @@ int cdup() {
   return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
-int type(char *t) {
+int type(char *rept) {
   printf("TYPE command is called\n");
-  if (t == NULL) {
+  if (rept == NULL) {
     send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
   }
-  else if (strcmp(t, "I") == 0) {
+  else if (strcmp(rept, "I") == 0) {
     send(newsockfd, "200 Switching to Binary mode.\n", 31, 0);
-  } else if (strcmp(t, "A") == 0){
+  } else if (strcmp(rept, "A") == 0){
     send(newsockfd, "200 Switching to ASCII mode.\n", 30, 0);
   } else {
     send(newsockfd, "500 Unrecognised TYPE command.\n", 32, 0);
@@ -248,46 +240,50 @@ int type(char *t) {
   return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
-int mode(char *m) {
+int mode(char *transm) {
   printf("MODE command is called\n");
-  if (m == NULL){
+  if (transm == NULL){
     send(newsockfd, "504 Bad MODE command.\n", 23, 0);
-  } else if (strcmp(m, "S") == 0){
+  } else if (strcmp(transm, "S") == 0){
     send(newsockfd, "200 Mode set to S.\n", 20, 0);
+  } else if (strcmp(transm, "B") == 0){
+    send(newsockfd, "504 MODE Block is not supported.\n", 34, 0);
+  } else if (strcmp(transm, "C") == 0){
+    send(newsockfd, "504 MODE Compressed is not supported.\n", 39, 0);
   } else {
     send(newsockfd, "504 Bad MODE command.\n", 23, 0);
   }
   return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
-int stru(char *fst) {
+int stru(char *filestrt) {
   printf("STRU command is called\n");
-
-
+  if (filestrt == NULL){
+    send(newsockfd, "504 Bad STRU command.\n", 23, 0);
+  } else if (strcmp(filestrt, "F") == 0){ // FILE
+    send(newsockfd, "200 Structure set to F.\n", 25, 0);
+  } else if (strcmp(filestrt, "R") == 0){ // RECORD
+    send(newsockfd, "504 STRU Record is not supported.\n", 35, 0);
+  } else if (strcmp(filestrt, "P") == 0){ // PAGE
+    send(newsockfd, "504 STRU Page is not supported.\n", 33, 0);
+  } else {
+    send(newsockfd, "504 Bad STRU command.\n", 23, 0);
+  }
+  return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int retr(char *x) {
   printf("RETR command is called\n");
 
 
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int pasv() {
   printf("PASV command is called\n");
 
 
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int nlst(char *x) {
   printf("NLST command is called\n");
 
