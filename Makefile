@@ -28,7 +28,7 @@ login.o: login.c login.h
 CSftp.o: CSftp.c dir.h usage.h login.h
 
 CSftp: $(OBJS)
-	$(CC) -o CSftp $(OBJS)
+	$(CC) -o CSftp $(OBJS) -lpthread
 
 clean:
 	rm -f *.o

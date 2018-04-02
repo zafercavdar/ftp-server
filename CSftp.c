@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "dir.h"
 #include "login.h"
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #define BUFF_SIZE 256
 
@@ -25,13 +27,12 @@ int pasv();
 int nlst(char *);
 
 int newsockfd;
+int pasvnewsockfd = -1;
+int pasv_called = 0;
 char init_dir[BUFF_SIZE];
 
-// Here is an example of how to use the above function. It also shows
-// one how to get the arguments passed on the command line.
 int main(int argc, char **argv) {
 
-    // This is some sample code feel free to delete it
     // This is the main program for the thread version of nc
 
     int port;
@@ -74,6 +75,9 @@ int main(int argc, char **argv) {
     }
 
     while(1) {
+      // Go to initial directory for each client.
+      chdir(init_dir);
+
       printf("Started listening\n");
       listen(sockfd, 5);
 
@@ -175,6 +179,8 @@ int quit() {
   printf("QUIT command is called\n");
   logout();
   send(newsockfd, "221 Goodbye.\n", 14, 0);
+  pasv_called = 0;
+  pasvnewsockfd = -1;
   close(newsockfd);
   return -1;
 }
@@ -182,28 +188,35 @@ int quit() {
 int cwd(char *dir) {
   printf("CWD command is called\n");
   char *f;
-  f = strtok(dir, "/\n");
-  printf("f: %s\n", f);
-  if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
-    send(newsockfd, "550 Directory cannot start with ../ or ./\n", 43, 0);
-    return 0;
-  }
+  char cpdir[BUFF_SIZE];
 
-  f = strtok(NULL, "/\n");
-
-  while(f != NULL){
+  if (dir == NULL){
+    send(newsockfd, "550 Failed to change directory.\n", 33, 0);
+  } else {
+    strcpy(cpdir, dir);
+    f = strtok(dir, "/\n");
     printf("f: %s\n", f);
-    if (strcmp(f, "..") == 0) {
-      send(newsockfd, "550 Directory cannot contain ../\n", 33, 0);
+    if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
+      send(newsockfd, "550 Directory cannot start with ../ or ./\n", 43, 0);
       return 0;
     }
-    f = strtok(NULL, "/\n");
-  }
 
-  if (chdir(dir) == 0){
-    send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
-  } else {
-    send(newsockfd, "550 Failed to change directory.\n", 33, 0);
+    f = strtok(NULL, "/\n");
+
+    while(f != NULL){
+      printf("f: %s\n", f);
+      if (strcmp(f, "..") == 0) {
+        send(newsockfd, "550 Directory cannot contain ../\n", 33, 0);
+        return 0;
+      }
+      f = strtok(NULL, "/\n");
+    }
+
+    if (chdir(cpdir) == 0){
+      send(newsockfd, "250 Directory successfully changed.\n", 37, 0);
+    } else {
+      send(newsockfd, "550 Failed to change directory.\n", 33, 0);
+    }
   }
   return 0;
 }
@@ -272,20 +285,92 @@ int stru(char *filestrt) {
   return 0;
 }
 
-int retr(char *x) {
-  printf("RETR command is called\n");
 
+void *pasv_connection(int pasvsockfd){
+  struct sockaddr_in pasv_cli_addr;
+  int pasvclilen;
+  printf("(PASV) Started listening\n");
+  listen(pasvsockfd, 5);
 
+  printf("(PASV) Accepting connections\n");
+  pasvclilen = sizeof(pasv_cli_addr);
+  pasvnewsockfd = accept(pasvsockfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
+  if (pasvnewsockfd < 0) {
+    printf("(PASV) Error on accept\n");
+  }
 }
 
 int pasv() {
   printf("PASV command is called\n");
+  struct sockaddr_in pasv_serv_addr;
+  int pasvsockfd;
+  int pasv_port;
+  struct sockaddr_in sa;
+  int sa_len;
+  char msg[BUFF_SIZE];
+  pthread_t pasv_thread;
 
+  printf("(PASV) Opening socket ...\n");
+  pasvsockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (pasvsockfd < 0) {
+    printf("(PASV) Error on opening socket.\n");
+    exit(-1);
+  }
 
+  bzero((char *) &pasv_serv_addr, sizeof(pasv_serv_addr));
+  pasv_serv_addr.sin_family = AF_INET;
+  pasv_serv_addr.sin_port = 0;
+  pasv_serv_addr.sin_addr.s_addr = INADDR_ANY;
+
+  printf("(PASV) Binding to random port.\n");
+  if (bind(pasvsockfd, (struct sockaddr *) &pasv_serv_addr, sizeof(pasv_serv_addr)) < 0) {
+    printf("(PASV) Error on binding.\n");
+    exit(-1);
+  }
+
+  sa_len = sizeof(sa);
+  getsockname(pasvsockfd, &sa, &sa_len);
+  pasv_port = (int) ntohs(sa.sin_port);
+  printf("(PASV) Bound to port %d\n", pasv_port);
+  // printf("Addr: %s\n", inet_ntoa(sa.sin_addr));
+
+  sprintf(msg, "227 Entering Passive Mode (0,0,0,0,%d,%d).\n", pasv_port / 256, pasv_port % 256);
+  send(newsockfd, msg, strlen(msg), 0);
+
+  pasv_called = 1;
+
+  if(pthread_create(&pasv_thread, NULL, pasv_connection, pasvsockfd)) {
+    printf("(PASV) Error on creating thread\n");
+    exit(-1);
+  }
+
+  return 0;
 }
 
 int nlst(char *x) {
   printf("NLST command is called\n");
+  char dir[BUFF_SIZE];
+
+  if (pasv_called == 0){
+    send(newsockfd, "425 Use PASV first.\n", 21, 0);
+  } else {
+    while(pasvnewsockfd == -1);
+    printf("PASV connection is established.\n");
+    send(newsockfd, "150 Here comes the directory listing.\n", 39, 0);
+    getcwd(dir, BUFF_SIZE);
+    listFiles(pasvnewsockfd, dir);
+    send(newsockfd, "226 Directory send OK.\n", 24, 0);
+    pasv_called = 0;
+    close(pasvnewsockfd);
+    pasvnewsockfd = -1;
+  }
+
+  return 0;
+}
 
 
+int retr(char *x) {
+  printf("RETR command is called\n");
+
+  return 0;
 }
