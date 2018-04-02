@@ -5,25 +5,22 @@
 
 int logged_in = 0;
 
-// TODO: FUNCTION DEFINITION
-//
 int user(int fd, char *username) {
   printf("USER command is called\n");
   if (logged_in == 1) {
     send(fd, "530 Can't change user when logged in.\n", 39, 0);
   } else {
-    if (strcmp(username, "cs317") == 0) {
+    if (username == NULL || strcmp(username, "cs317") != 0){
+      send(fd, "530 This server is cs317 only.\n", 31, 0);
+    }
+    else {
       logged_in = 1;
       send(fd, "230 Login successful.\n", 22, 0);
-    } else {
-      send(fd, "530 This server is cs317 only.\n", 31, 0);
     }
   }
   return 0;
 }
 
-// TODO: FUNCTION DEFINITION
-//
 int pass(int fd, char * pw) {
   printf("PASS command is called\n");
   if (logged_in == 0) {
