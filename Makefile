@@ -17,7 +17,7 @@ CPPFLAGS=
 CFLAGS=-g -Werror-implicit-function-declaration
 
 #List all the .o files here that need to be linked
-OBJS=CSftp.o usage.o dir.o login.o
+OBJS=CSftp.o usage.o dir.o login.o simple.o
 
 usage.o: usage.c usage.h
 
@@ -25,7 +25,9 @@ dir.o: dir.c dir.h
 
 login.o: login.c login.h
 
-CSftp.o: CSftp.c dir.h usage.h login.h
+simple.o: simple.c simple.h
+
+CSftp.o: CSftp.c dir.h usage.h login.h simple.h
 
 CSftp: $(OBJS)
 	$(CC) -o CSftp $(OBJS) -lpthread
