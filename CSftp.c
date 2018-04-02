@@ -8,6 +8,7 @@
 #include "login.h"
 #include "usage.h"
 #include "simple.h"
+#include "helpers.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -276,7 +277,7 @@ int retr(char *fname) {
   FILE *fs;
   int fs_block_size;
   char sdbuf[BUFF_SIZE * 2];
-  int count = 0;
+  int fs_total;
 
   if (pasv_called == 0){
     send(newsockfd, "425 Use PASV first.\n", 21, 0);
@@ -289,19 +290,19 @@ int retr(char *fname) {
       if (access(fname, R_OK) != -1){
         // Read and send data
         fs = fopen(fname, "r");
+        fs_total = fsize(fs);
+        sprintf(msg, "150 Opening BINARY mode data connection for %s (%d bytes).\n", fname, fs_total);
+        send(newsockfd, msg, strlen(msg), 0);
+
         bzero(sdbuf, BUFF_SIZE * 2);
         while((fs_block_size = fread(sdbuf, sizeof(char), BUFF_SIZE * 2, fs)) > 0){
           printf("fs_block_size: %d\n", fs_block_size);
-          count += fs_block_size;
           if (send(pasvnewsockfd, sdbuf, fs_block_size, 0) < 0){
             printf("(PASV) Error while sending data.\n");
           }
           bzero(sdbuf, BUFF_SIZE * 2);
         }
         close(fs);
-
-        sprintf(msg, "150 Opening BINARY mode data connection for %s (%d bytes).\n", fname, count);
-        send(newsockfd, msg, strlen(msg), 0);
 
         send(newsockfd, "226 Transfer complete.\n", 24, 0);
         pasv_called = 0;
