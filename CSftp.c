@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <netdb.h>
 
 #define BUFF_SIZE 256
 
@@ -203,6 +204,9 @@ int pasv() {
   struct sockaddr_in sa;
   int sa_len;
   char msg[BUFF_SIZE];
+  char addr[BUFF_SIZE];
+  int ip1, ip2, ip3, ip4;
+  char *token;
   pthread_t pasv_thread;
 
   printf("(PASV) Opening socket ...\n");
@@ -227,10 +231,34 @@ int pasv() {
   getsockname(pasvsockfd, &sa, &sa_len);
   pasv_port = (int) ntohs(sa.sin_port);
   printf("(PASV) Bound to port %d\n", pasv_port);
-  // printf("Addr: %s\n", inet_ntoa(sa.sin_addr));
+  strcpy(addr, inet_ntoa(sa.sin_addr));
+  printf("(PASV) Bound to address: %s\n", addr);
 
-  sprintf(msg, "227 Entering Passive Mode (0,0,0,0,%d,%d).\n", pasv_port / 256, pasv_port % 256);
+  token = strtok(addr, ".\r\n");
+  if (token != NULL) {
+    ip1 = atoi(token);
+    token = strtok(NULL, ".\r\n");
+  }
+  if (token != NULL) {
+    ip2 = atoi(token);
+    token = strtok(NULL, ".\r\n");
+  }
+  if (token != NULL) {
+    ip3 = atoi(token);
+    token = strtok(NULL, ".\r\n");
+  }
+  if (token != NULL) {
+    ip4 = atoi(token);
+  }
+
+  sprintf(msg, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", ip1, ip2, ip3, ip4, pasv_port / 256, pasv_port % 256);
   send(newsockfd, msg, strlen(msg), 0);
+
+  char host[1024];
+  char service[20];
+  getnameinfo(&pasv_serv_addr, sizeof pasv_serv_addr, host, sizeof host, service, sizeof service, 0);
+  printf("   host: %s\n", host);    // e.g. "www.example.com"
+  printf("service: %s\n", service); // e.g. "http
 
   pasv_called = 1;
 
