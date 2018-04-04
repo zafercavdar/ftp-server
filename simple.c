@@ -63,10 +63,9 @@ int type(int fd, char *rept) {
   printf("TYPE command is called\n");
   if (rept == NULL) {
     send(fd, "500 Unrecognised TYPE command.\n", 32, 0);
-  }
-  else if (strcmp(rept, "I") == 0) {
+  } else if (strcasecmp(rept, "I") == 0) {
     send(fd, "200 Switching to Binary mode.\n", 31, 0);
-  } else if (strcmp(rept, "A") == 0){
+  } else if (strcasecmp(rept, "A") == 0){
     send(fd, "200 Switching to ASCII mode.\n", 30, 0);
   } else {
     send(fd, "500 Unrecognised TYPE command.\n", 32, 0);
@@ -78,11 +77,11 @@ int mode(int fd, char *transm) {
   printf("MODE command is called\n");
   if (transm == NULL){
     send(fd, "504 Bad MODE command.\n", 23, 0);
-  } else if (strcmp(transm, "S") == 0){
+  } else if (strcasecmp(transm, "S") == 0){
     send(fd, "200 Mode set to S.\n", 20, 0);
-  } else if (strcmp(transm, "B") == 0){
+  } else if (strcasecmp(transm, "B") == 0){
     send(fd, "504 MODE Block is not supported.\n", 34, 0);
-  } else if (strcmp(transm, "C") == 0){
+  } else if (strcasecmp(transm, "C") == 0){
     send(fd, "504 MODE Compressed is not supported.\n", 39, 0);
   } else {
     send(fd, "504 Bad MODE command.\n", 23, 0);
@@ -94,11 +93,11 @@ int stru(int fd, char *filestrt) {
   printf("STRU command is called\n");
   if (filestrt == NULL){
     send(fd, "504 Bad STRU command.\n", 23, 0);
-  } else if (strcmp(filestrt, "F") == 0){ // FILE
+  } else if (strcasecmp(filestrt, "F") == 0){ // FILE
     send(fd, "200 Structure set to F.\n", 25, 0);
-  } else if (strcmp(filestrt, "R") == 0){ // RECORD
+  } else if (strcasecmp(filestrt, "R") == 0){ // RECORD
     send(fd, "504 STRU Record is not supported.\n", 35, 0);
-  } else if (strcmp(filestrt, "P") == 0){ // PAGE
+  } else if (strcasecmp(filestrt, "P") == 0){ // PAGE
     send(fd, "504 STRU Page is not supported.\n", 33, 0);
   } else {
     send(fd, "504 Bad STRU command.\n", 23, 0);
