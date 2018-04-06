@@ -54,10 +54,10 @@ int main(int argc, char **argv) {
     // Save the initial working directory
     getcwd(init_dir, BUFF_SIZE);
 
-    printf("Opening socket ...\n");
+    printf("info | server: opening socket\n");
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-      printf("Error on opening socket.\n");
+      printf("error | server: opening socket\n");
       exit(-1);
     }
 
@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    printf("Binding to port %d\n", port);
+    printf("info | server: binding to port %d\n", port);
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-      printf("Error on binding.\n");
+      printf("error | server: binding\n");
       exit(-1);
     }
 
@@ -76,106 +76,108 @@ int main(int argc, char **argv) {
       // Go to initial directory for each client.
       chdir(init_dir);
 
-      printf("Started listening\n");
+      printf("info | server: started listening\n");
       listen(sockfd, 5);
 
-      printf("Accepting connections\n");
+      printf("info | server: accepting connections\n");
       clilen = sizeof(cli_addr);
       newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
       if (newsockfd < 0) {
-        printf("Error on accept\n");
+        printf("error | server: accept\n");
         continue;
       }
 
-      printf("Sending 220 Message\n");
+      printf("info | server: sending 220 FTP server ready.\n");
       if(send(newsockfd, "220 FTP server ready.\n", 22, 0) < 0) {
-        printf("Error on sending 220\n");
+        printf("error | server: sending 220\n");
         continue;
       }
 
       while (1) {
-        printf("Reading from socket\n");
+        printf("info | server: reading client message\n");
         bzero(buffer, BUFF_SIZE);
         if (recv(newsockfd, buffer, BUFF_SIZE - 1, 0) < 0 || strcmp(buffer, "") == 0) {
-          printf("Error while reading from socket\n");
+          printf("error | server: reading from socket\n");
           close(newsockfd);
           logout();
           break;
         }
-        printf("Message: %s\n", buffer);
         if (parse_command(buffer) == -1) { // QUIT returns -1
           break;
         }
       }
     }
 
-    // This is how to call the function in dir.c to get a listing of a directory.
-    // It requires a file descriptor, so in your code you would pass in the file descriptor
-    // returned for the ftp server's data connection
     // printf("Printed %d directory entries\n", listFiles(1, "."));
-    // return 0;
+    return 0;
 }
 
 int parse_command(char *str) {
-  char *command;
-  char *argument;
+  char *cmd;
+  char *arg;
+  char msg[BUFF_SIZE];
 
-  // Extract command and it's argument if exists
-  command = strtok(str, " \r\n");
-  if (command != NULL) {
-    argument = strtok(NULL, " \r\n");
+  // Extract cmd and it's arg if exists
+  if ((cmd = strtok(str, " \r\n")) != NULL){
+    printf("info | server: cmd -> %s\n", cmd);
+    if ((arg = strtok(NULL, " \r\n")) != NULL){
+      printf("info | server: arg -> %s\n", arg);
+    }
   }
 
-  if (strcasecmp(command, "USER") == 0)
-    return user(newsockfd, argument);
+  if (strcasecmp(cmd, "USER") == 0)
+    return user(newsockfd, arg);
 
-  else if (strcasecmp(command, "PASS") == 0)
-    return pass(newsockfd, argument);
+  else if (strcasecmp(cmd, "PASS") == 0)
+    return pass(newsockfd, arg);
 
-  else if (strcasecmp(command, "QUIT") == 0)
+  else if (strcasecmp(cmd, "QUIT") == 0)
     return quit();
 
   else {
     if (is_logged_in() == 1) {
-      if (strcasecmp(command, "CWD") == 0)
-        return cwd(newsockfd, argument);
+      if (strcasecmp(cmd, "CWD") == 0)
+        return cwd(newsockfd, arg);
 
-      else if (strcasecmp(command, "CDUP") == 0)
+      else if (strcasecmp(cmd, "CDUP") == 0)
         return cdup(newsockfd, init_dir);
 
-      else if (strcasecmp(command, "TYPE") == 0)
-        return type(newsockfd, argument);
+      else if (strcasecmp(cmd, "TYPE") == 0)
+        return type(newsockfd, arg);
 
-      else if (strcasecmp(command, "MODE") == 0)
-        return mode(newsockfd, argument);
+      else if (strcasecmp(cmd, "MODE") == 0)
+        return mode(newsockfd, arg);
 
-      else if (strcasecmp(command, "STRU") == 0)
-        return stru(newsockfd, argument);
+      else if (strcasecmp(cmd, "STRU") == 0)
+        return stru(newsockfd, arg);
 
-      else if (strcasecmp(command, "RETR") == 0)
-        return retr(argument);
+      else if (strcasecmp(cmd, "RETR") == 0)
+        return retr(arg);
 
-      else if (strcasecmp(command, "PASV") == 0)
+      else if (strcasecmp(cmd, "PASV") == 0)
         return pasv();
 
-      else if (strcasecmp(command, "NLST") == 0)
-        return nlst(argument);
+      else if (strcasecmp(cmd, "NLST") == 0)
+        return nlst(arg);
 
       else {
-        send(newsockfd, "502 Command unrecognized and the requested action did not take place.\n", 70, 0);
+        strcpy(msg, "502 command unrecognized and the requested action did not take place.\n");
+        fdsend(newsockfd, msg);
         return 1;
       }
     } else {
-      send(newsockfd, "503 Login with USER first.\n", 27, 0);
+      strcpy(msg, "503 Login with USER first.\n");
+      fdsend(newsockfd, msg);
       return 0;
     }
   }
 }
 
 int quit() {
-  printf("QUIT command is called\n");
+  printf("info | server: called QUIT func\n");
   logout();
-  send(newsockfd, "221 Goodbye.\n", 14, 0);
+  char msg[] = "221 Goodbye.\n";
+  fdsend(newsockfd, msg);
   pasv_called = 0;
   pasvnewsockfd = -1;
   close(newsockfd);
@@ -185,19 +187,21 @@ int quit() {
 void *pasv_connection(int pasvsockfd){
   struct sockaddr_in pasv_cli_addr;
   int pasvclilen;
-  printf("(PASV) Started listening\n");
+  printf("info | server: (PASV) started listening\n");
   listen(pasvsockfd, 5);
 
-  printf("(PASV) Accepting connections\n");
+  printf("info | server: (PASV) accepting connections\n");
   pasvclilen = sizeof(pasv_cli_addr);
   pasvnewsockfd = accept(pasvsockfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
   if (pasvnewsockfd < 0) {
-    printf("(PASV) Error on accept\n");
+    printf("error | server: (PASV) accept\n");
   }
+  printf("info | server: (PASV) connection is established\n");
+
 }
 
 int pasv() {
-  printf("PASV command is called\n");
+  printf("info | server: called PASV func\n");
   struct sockaddr_in pasv_serv_addr;
   int pasvsockfd;
   int pasv_port;
@@ -215,10 +219,10 @@ int pasv() {
   char hostname[BUFF_SIZE];
 
 
-  printf("(PASV) Opening socket ...\n");
+  printf("info | server: (PASV) opening socket\n");
   pasvsockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (pasvsockfd < 0) {
-    printf("(PASV) Error on opening socket.\n");
+    printf("error | server: (PASV) opening socket\n");
     exit(-1);
   }
 
@@ -227,9 +231,9 @@ int pasv() {
   pasv_serv_addr.sin_port = 0;
   pasv_serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-  printf("(PASV) Binding to random port.\n");
+  printf("info | server: (PASV) binding to random port\n");
   if (bind(pasvsockfd, (struct sockaddr *) &pasv_serv_addr, sizeof(pasv_serv_addr)) < 0) {
-    printf("(PASV) Error on binding.\n");
+    printf("error | server: (PASV) binding\n");
     exit(-1);
   }
 
@@ -241,20 +245,18 @@ int pasv() {
   if ((he = gethostbyname(hostname)) == NULL) {  // get the host info
         herror("gethostbyname");
         return 2;
-    }
+  }
 
   // print information about this host:
-  printf("Official name is: %s\n", he->h_name);
-  printf("    IP addresses: ");
+  printf("info | server: (PASV) official server name is: %s\n", he->h_name);
   addr_list = (struct in_addr **)he->h_addr_list;
   for(i = 0; addr_list[i] != NULL; i++) {
       strcpy(addr, inet_ntoa(*addr_list[i]));
-      printf("%s ", inet_ntoa(*addr_list[i]));
   }
 
-  printf("(PASV) Bound to port %d\n", pasv_port);
+  printf("info | server: (PASV) bound to port %d\n", pasv_port);
   //strcpy(addr, inet_ntoa(sa.sin_addr));
-  printf("(PASV) Bound to address: %s\n", addr);
+  printf("info | server: (PASV) bound to address: %s\n", addr);
 
   token = strtok(addr, ".\r\n");
   if (token != NULL) {
@@ -274,12 +276,12 @@ int pasv() {
   }
 
   sprintf(msg, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", ip1, ip2, ip3, ip4, pasv_port / 256, pasv_port % 256);
-  send(newsockfd, msg, strlen(msg), 0);
+  fdsend(newsockfd, msg);
 
   pasv_called = 1;
 
   if(pthread_create(&pasv_thread, NULL, pasv_connection, pasvsockfd)) {
-    printf("(PASV) Error on creating thread\n");
+    printf("error | server: (PASV) creating thread\n");
     exit(-1);
   }
 
@@ -287,14 +289,15 @@ int pasv() {
 }
 
 int nlst(char *path) {
-  printf("NLST command is called\n");
+  printf("info | server: called NLST func\n");
   char dir[BUFF_SIZE];
+  char msg[BUFF_SIZE];
 
   if (pasv_called == 0){
-    send(newsockfd, "425 Use PASV first.\n", 21, 0);
+    strcpy(msg, "425 Use PASV first.\n");
+    fdsend(newsockfd, msg);
   } else {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
-    printf("PASV connection is established.\n");
 
     if (path == NULL){
       getcwd(dir, BUFF_SIZE);
@@ -302,9 +305,16 @@ int nlst(char *path) {
       strcpy(dir, path);
     }
 
-    send(newsockfd, "150 Here comes the directory listing.\n", 39, 0);
+    bzero(msg, sizeof msg);
+    strcpy(msg, "150 Here comes the directory listing.\n");
+    fdsend(newsockfd, msg);
+
     listFiles(pasvnewsockfd, dir);
-    send(newsockfd, "226 Directory send OK.\n", 24, 0);
+
+    bzero(msg, sizeof msg);
+    strcpy(msg, "226 Directory send OK.\n");
+    fdsend(newsockfd, msg);
+
     pasv_called = 0;
     close(pasvnewsockfd);
     pasvnewsockfd = -1;
@@ -315,7 +325,7 @@ int nlst(char *path) {
 
 
 int retr(char *fname) {
-  printf("RETR command is called\n");
+  printf("info | server: called RETR func\n");
   char msg[BUFF_SIZE];
   int bytes_read;
   FILE *fs;
@@ -325,35 +335,45 @@ int retr(char *fname) {
 
   if (pasv_called == 0){
     send(newsockfd, "425 Use PASV first.\n", 21, 0);
+
   } else{
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
-    printf("PASV connection is established.\n");
+    printf("info | server: (PASV) connection is established.\n");
     if (fname == NULL){
-      send(newsockfd, "550 Failed to open file.\n", 26, 0);
+      bzero(msg, sizeof msg);
+      strcpy(msg, "550 Failed to open file.\n");
+      fdsend(newsockfd, msg);
     } else{
       if (access(fname, R_OK) != -1){
         // Read and send data
         fs = fopen(fname, "r");
         fs_total = fsize(fs);
+
+        bzero(msg, sizeof msg);
         sprintf(msg, "150 Opening BINARY mode data connection for %s (%d bytes).\n", fname, fs_total);
-        send(newsockfd, msg, strlen(msg), 0);
+        fdsend(newsockfd, msg);
 
         bzero(sdbuf, BUFF_SIZE * 2);
         while((fs_block_size = fread(sdbuf, sizeof(char), BUFF_SIZE * 2, fs)) > 0){
-          printf("fs_block_size: %d\n", fs_block_size);
+          printf("info | server: (PASV) fs_block_size: %d\n", fs_block_size);
           if (send(pasvnewsockfd, sdbuf, fs_block_size, 0) < 0){
-            printf("(PASV) Error while sending data.\n");
+            printf("error | server: (PASV) sending data\n");
           }
           bzero(sdbuf, BUFF_SIZE * 2);
         }
         close(fs);
 
-        send(newsockfd, "226 Transfer complete.\n", 24, 0);
+        bzero(msg, sizeof msg);
+        strcpy(msg, "226 Transfer complete.\n");
+        fdsend(newsockfd, msg);
+
         pasv_called = 0;
         close(pasvnewsockfd);
         pasvnewsockfd = -1;
       } else{
-        send(newsockfd, "550 Failed to open file.\n", 26, 0);
+        bzero(msg, sizeof msg);
+        strcpy(msg, "550 Failed to open file.\n");
+        fdsend(newsockfd, msg);
       }
     }
   }

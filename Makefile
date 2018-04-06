@@ -23,9 +23,9 @@ usage.o: usage.c usage.h
 
 dir.o: dir.c dir.h
 
-login.o: login.c login.h
+login.o: login.c login.h helpers.h
 
-simple.o: simple.c simple.h
+simple.o: simple.c simple.h helpers.h
 
 helpers.o: helpers.c helpers.h
 
