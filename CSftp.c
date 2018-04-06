@@ -184,15 +184,16 @@ int quit() {
   return -1;
 }
 
-void *pasv_connection(int pasvsockfd){
+void *pasv_connection(void *pasvsockfd){
   struct sockaddr_in pasv_cli_addr;
   int pasvclilen;
+  int *psfd = ((int *) pasvsockfd);
   printf("info | server: (PASV) started listening\n");
-  listen(pasvsockfd, 5);
+  listen(*psfd, 5);
 
   printf("info | server: (PASV) accepting connections\n");
   pasvclilen = sizeof(pasv_cli_addr);
-  pasvnewsockfd = accept(pasvsockfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
+  pasvnewsockfd = accept(*psfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
   if (pasvnewsockfd < 0) {
     printf("error | server: (PASV) accept\n");
   }
@@ -238,7 +239,7 @@ int pasv() {
   }
 
   sa_len = sizeof(sa);
-  getsockname(pasvsockfd, &sa, &sa_len);
+  getsockname(pasvsockfd, (struct sockaddr *) &sa, &sa_len);
   pasv_port = (int) ntohs(sa.sin_port);
 
   gethostname(hostname, sizeof hostname);
@@ -280,7 +281,7 @@ int pasv() {
 
   pasv_called = 1;
 
-  if(pthread_create(&pasv_thread, NULL, pasv_connection, pasvsockfd)) {
+  if(pthread_create(&pasv_thread, NULL, pasv_connection, (void *) &pasvsockfd)) {
     printf("error | server: (PASV) creating thread\n");
     exit(-1);
   }
@@ -293,22 +294,23 @@ int nlst(char *path) {
   char dir[BUFF_SIZE];
   char msg[BUFF_SIZE];
 
+  if (path != NULL){
+    strcpy(msg, "501 NLST doesn't support argument.\n");
+    fdsend(newsockfd, msg);
+    return 0;
+  }
+
   if (pasv_called == 0){
     strcpy(msg, "425 Can't open data connection. Use PASV first.\n");
     fdsend(newsockfd, msg);
   } else {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
 
-    if (path == NULL){
-      getcwd(dir, BUFF_SIZE);
-    } else {
-      strcpy(dir, path);
-    }
-
     bzero(msg, sizeof msg);
     strcpy(msg, "150 File status okay; about to open data connection. Here comes the directory listing.\n");
     fdsend(newsockfd, msg);
 
+    getcwd(dir, BUFF_SIZE);
     listFiles(pasvnewsockfd, dir);
 
     pasv_called = 0;
@@ -335,7 +337,6 @@ int retr(char *fname) {
 
   if (pasv_called == 0){
     send(newsockfd, "425 Can't open data connection. Use PASV first.\n", 48, 0);
-
   } else{
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
     printf("info | server: (PASV) connection is established.\n");
@@ -361,7 +362,7 @@ int retr(char *fname) {
           }
           bzero(sdbuf, BUFF_SIZE * 2);
         }
-        close(fs);
+        fclose(fs);
 
         pasv_called = 0;
         close(pasvnewsockfd);
