@@ -19,6 +19,7 @@ int cwd(int fd, char *dir) {
     f = strtok(dir, "/\r\n");
     if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
       strcpy(msg, "550 Requested action not taken. Directory cannot start with ../ or ./\n");
+      fdsend(fd, msg);
       return 0;
     }
 
@@ -27,6 +28,7 @@ int cwd(int fd, char *dir) {
     while(f != NULL){
       if (strcmp(f, "..") == 0) {
         strcpy(msg, "550 Requested action not taken. Directory cannot contain ../\n");
+        fdsend(fd, msg);
         return 0;
       }
       f = strtok(NULL, "/\n");
