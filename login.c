@@ -13,7 +13,7 @@ int user(int fd, char *username) {
   char msg[BUFF_SIZE];
 
   if (logged_in == 1) {
-    strcpy(msg, "530 Not logged in. Can't change user when logged in.\n");
+    strcpy(msg, "530 Already logged in. Can't change user when logged in.\n");
   } else {
     if (username == NULL || strcmp(username, "cs317") != 0){
       strcpy(msg, "530 Not logged in. This server is cs317 only.\n");

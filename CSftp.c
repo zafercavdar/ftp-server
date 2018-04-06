@@ -311,13 +311,13 @@ int nlst(char *path) {
 
     listFiles(pasvnewsockfd, dir);
 
-    bzero(msg, sizeof msg);
-    strcpy(msg, "226 Directory send OK. Closing data connection. Requested file action successful.\n");
-    fdsend(newsockfd, msg);
-
     pasv_called = 0;
     close(pasvnewsockfd);
     pasvnewsockfd = -1;
+
+    bzero(msg, sizeof msg);
+    strcpy(msg, "226 Directory send OK. Closing data connection. Requested file action successful.\n");
+    fdsend(newsockfd, msg);
   }
 
   return 0;
