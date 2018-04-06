@@ -209,6 +209,12 @@ int pasv() {
   char *token;
   pthread_t pasv_thread;
 
+  int i;
+  struct hostent *he;
+  struct in_addr **addr_list;
+  char hostname[BUFF_SIZE];
+
+
   printf("(PASV) Opening socket ...\n");
   pasvsockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (pasvsockfd < 0) {
@@ -230,8 +236,24 @@ int pasv() {
   sa_len = sizeof(sa);
   getsockname(pasvsockfd, &sa, &sa_len);
   pasv_port = (int) ntohs(sa.sin_port);
+
+  gethostname(hostname, sizeof hostname);
+  if ((he = gethostbyname(hostname)) == NULL) {  // get the host info
+        herror("gethostbyname");
+        return 2;
+    }
+
+  // print information about this host:
+  printf("Official name is: %s\n", he->h_name);
+  printf("    IP addresses: ");
+  addr_list = (struct in_addr **)he->h_addr_list;
+  for(i = 0; addr_list[i] != NULL; i++) {
+      strcpy(addr, inet_ntoa(*addr_list[i]));
+      printf("%s ", inet_ntoa(*addr_list[i]));
+  }
+
   printf("(PASV) Bound to port %d\n", pasv_port);
-  strcpy(addr, inet_ntoa(sa.sin_addr));
+  //strcpy(addr, inet_ntoa(sa.sin_addr));
   printf("(PASV) Bound to address: %s\n", addr);
 
   token = strtok(addr, ".\r\n");
@@ -253,12 +275,6 @@ int pasv() {
 
   sprintf(msg, "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d).\n", ip1, ip2, ip3, ip4, pasv_port / 256, pasv_port % 256);
   send(newsockfd, msg, strlen(msg), 0);
-
-  char host[1024];
-  char service[20];
-  getnameinfo(&pasv_serv_addr, sizeof pasv_serv_addr, host, sizeof host, service, sizeof service, 0);
-  printf("   host: %s\n", host);    // e.g. "www.example.com"
-  printf("service: %s\n", service); // e.g. "http
 
   pasv_called = 1;
 
