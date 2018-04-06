@@ -157,7 +157,7 @@ int parse_command(char *str) {
       else if (strcasecmp(cmd, "PASV") == 0)
         return pasv();
 
-      else if (strcasecmp(cmd, "NLST") == 0)
+      else if (strcasecmp(cmd, "NLST") == 0 || strcasecmp(cmd, "LIST") == 0)
         return nlst(arg);
 
       else {
@@ -330,7 +330,7 @@ int retr(char *fname) {
   int bytes_read;
   FILE *fs;
   int fs_block_size;
-  char sdbuf[BUFF_SIZE * 2];
+  byte sdbuf[BUFF_SIZE * 2];
   int fs_total;
 
   if (pasv_called == 0){
@@ -356,7 +356,12 @@ int retr(char *fname) {
         bzero(sdbuf, BUFF_SIZE * 2);
         while((fs_block_size = fread(sdbuf, sizeof(char), BUFF_SIZE * 2, fs)) > 0){
           printf("info | server: (PASV) fs_block_size: %d\n", fs_block_size);
+          /*
           if (send(pasvnewsockfd, sdbuf, fs_block_size, 0) < 0){
+            printf("error | server: (PASV) sending data\n");
+          }
+          */
+          if (write(pasvsockfd, sdbuf, fs_block_size) < 0){
             printf("error | server: (PASV) sending data\n");
           }
           bzero(sdbuf, BUFF_SIZE * 2);
