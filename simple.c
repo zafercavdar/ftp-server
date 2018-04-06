@@ -13,12 +13,12 @@ int cwd(int fd, char *dir) {
   char msg[BUFF_SIZE];
 
   if (dir == NULL){
-    strcpy(msg, "550 Failed to change directory.\n");
+    strcpy(msg, "550 Requested action not taken. Failed to change directory.\n");
   } else {
     strcpy(cpdir, dir);
     f = strtok(dir, "/\r\n");
     if (strcmp(f, "..") == 0 || strcmp(f, ".") == 0) {
-      strcpy(msg, "550 Directory cannot start with ../ or ./\n");
+      strcpy(msg, "550 Requested action not taken. Directory cannot start with ../ or ./\n");
       return 0;
     }
 
@@ -26,16 +26,16 @@ int cwd(int fd, char *dir) {
 
     while(f != NULL){
       if (strcmp(f, "..") == 0) {
-        strcpy(msg, "550 Directory cannot contain ../\n");
+        strcpy(msg, "550 Requested action not taken. Directory cannot contain ../\n");
         return 0;
       }
       f = strtok(NULL, "/\n");
     }
 
     if (chdir(cpdir) == 0){
-      strcpy(msg, "250 Directory successfully changed.\n");
+      strcpy(msg, "250 Requested file action okay, completed. Directory successfully changed.\n");
     } else {
-      strcpy(msg, "550 Failed to change directory.\n");
+      strcpy(msg, "550 Requested action not taken. Failed to change directory.\n");
     }
   }
 
@@ -50,12 +50,12 @@ int cdup(int fd, char init_dir[]) {
 
   getcwd(current_dir, BUFF_SIZE);
   if (strcmp(current_dir, init_dir) == 0){
-    strcpy(msg, "550 Not permitted to access parent of root directory.\n");
+    strcpy(msg, "550 Requested action not taken. Not permitted to access parent of root directory.\n");
   } else {
     if (chdir("..") == 0){
-      strcpy(msg, "250 Directory successfully changed.\n");
+      strcpy(msg, "250 Requested file action okay, completed. Directory successfully changed.\n");
     } else {
-      strcpy(msg, "550 Failed to change directory.\n");
+      strcpy(msg, "550 Requested action not taken. Failed to change directory.\n");
     }
   }
 
@@ -68,13 +68,13 @@ int type(int fd, char *rept) {
   char msg[BUFF_SIZE];
 
   if (rept == NULL) {
-    strcpy(msg, "500 Unrecognised TYPE command.\n");
+    strcpy(msg, "500 Syntax error, unrecognised TYPE command.\n");
   } else if (strcasecmp(rept, "I") == 0) {
-    strcpy(msg, "200 Switching to Binary mode.\n");
+    strcpy(msg, "200 Command okay. Switching to Binary mode.\n");
   } else if (strcasecmp(rept, "A") == 0){
-    strcpy(msg, "200 Switching to ASCII mode.\n");
+    strcpy(msg, "200 Command okay. Switching to ASCII mode.\n");
   } else {
-    strcpy(msg, "500 Unrecognised TYPE command.\n");
+    strcpy(msg, "500 Syntax error, unrecognised TYPE command.\n");
   }
 
   fdsend(fd, msg);
@@ -88,7 +88,7 @@ int mode(int fd, char *transm) {
   if (transm == NULL){
     strcpy(msg, "504 Bad MODE command.\n");
   } else if (strcasecmp(transm, "S") == 0){
-    strcpy(msg, "200 Mode set to S.\n");
+    strcpy(msg, "200 Command okay. Mode set to S.\n");
   } else if (strcasecmp(transm, "B") == 0){
     strcpy(msg, "504 MODE Block is not supported.\n");
   } else if (strcasecmp(transm, "C") == 0){
@@ -108,7 +108,7 @@ int stru(int fd, char *filestrt) {
   if (filestrt == NULL){
     strcpy(msg, "504 Bad STRU command.\n");
   } else if (strcasecmp(filestrt, "F") == 0){ // FILE
-    strcpy(msg, "200 Structure set to F.\n");
+    strcpy(msg, "200 Command okay. Structure set to F.\n");
   } else if (strcasecmp(filestrt, "R") == 0){ // RECORD
     strcpy(msg, "504 STRU Record is not supported.\n");
   } else if (strcasecmp(filestrt, "P") == 0){ // PAGE

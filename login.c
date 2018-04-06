@@ -13,14 +13,14 @@ int user(int fd, char *username) {
   char msg[BUFF_SIZE];
 
   if (logged_in == 1) {
-    strcpy(msg, "530 Can't change user when logged in.\n");
+    strcpy(msg, "530 Not logged in. Can't change user when logged in.\n");
   } else {
     if (username == NULL || strcmp(username, "cs317") != 0){
-      strcpy(msg, "530 This server is cs317 only.\n");
+      strcpy(msg, "530 Not logged in. This server is cs317 only.\n");
     }
     else {
       logged_in = 1;
-      strcpy(msg, "230 Login successful.\n");
+      strcpy(msg, "230 User logged in, proceed.\n");
     }
   }
 
@@ -33,9 +33,9 @@ int pass(int fd, char * pw) {
   char msg[BUFF_SIZE];
 
   if (logged_in == 0) {
-    strcpy(msg, "503 Login with USER first.\n");
+    strcpy(msg, "503 Bad sequence of commands. Login with USER first.\n");
   } else {
-    strcpy(msg, "230 Already logged in.\n");
+    strcpy(msg, "230 User logged in, proceed.\n");
   }
 
   fdsend(fd, msg);
