@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
       }
 
       printf("info | server: sending 220 FTP server ready.\n");
-      if(send(newsockfd, "220 FTP server ready.\n", 22, 0) < 0) {
+      if(send(newsockfd, "220 Service ready for new user.\n", 32, 0) < 0) {
         printf("error | server: sending 220\n");
         continue;
       }
@@ -161,12 +161,12 @@ int parse_command(char *str) {
         return nlst(arg);
 
       else {
-        strcpy(msg, "502 command unrecognized and the requested action did not take place.\n");
+        strcpy(msg, "502 Command not implemented.\n");
         fdsend(newsockfd, msg);
         return 1;
       }
     } else {
-      strcpy(msg, "503 Login with USER first.\n");
+      strcpy(msg, "503 Bad sequence of commands. Login with USER first.\n");
       fdsend(newsockfd, msg);
       return 0;
     }
@@ -176,7 +176,7 @@ int parse_command(char *str) {
 int quit() {
   printf("info | server: called QUIT func\n");
   logout();
-  char msg[] = "221 Goodbye.\n";
+  char msg[] = "221 Service closing control connection.\n";
   fdsend(newsockfd, msg);
   pasv_called = 0;
   pasvnewsockfd = -1;
@@ -294,7 +294,7 @@ int nlst(char *path) {
   char msg[BUFF_SIZE];
 
   if (pasv_called == 0){
-    strcpy(msg, "425 Use PASV first.\n");
+    strcpy(msg, "425 Can't open data connection. Use PASV first.\n");
     fdsend(newsockfd, msg);
   } else {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
@@ -306,13 +306,13 @@ int nlst(char *path) {
     }
 
     bzero(msg, sizeof msg);
-    strcpy(msg, "150 Here comes the directory listing.\n");
+    strcpy(msg, "150 File status okay; about to open data connection. Here comes the directory listing.\n");
     fdsend(newsockfd, msg);
 
     listFiles(pasvnewsockfd, dir);
 
     bzero(msg, sizeof msg);
-    strcpy(msg, "226 Directory send OK.\n");
+    strcpy(msg, "226 Directory send OK. Closing data connection. Requested file action successful.\n");
     fdsend(newsockfd, msg);
 
     pasv_called = 0;
@@ -334,14 +334,14 @@ int retr(char *fname) {
   int fs_total;
 
   if (pasv_called == 0){
-    send(newsockfd, "425 Use PASV first.\n", 21, 0);
+    send(newsockfd, "425 Can't open data connection. Use PASV first.\n", 48, 0);
 
   } else{
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
     printf("info | server: (PASV) connection is established.\n");
     if (fname == NULL){
       bzero(msg, sizeof msg);
-      strcpy(msg, "550 Failed to open file.\n");
+      strcpy(msg, "550 Requested action not taken. Failed to open file.\n");
       fdsend(newsockfd, msg);
     } else{
       if (access(fname, R_OK) != -1){
@@ -350,7 +350,7 @@ int retr(char *fname) {
         fs_total = fsize(fs);
 
         bzero(msg, sizeof msg);
-        sprintf(msg, "150 Opening BINARY mode data connection for %s (%d bytes).\n", fname, fs_total);
+        sprintf(msg, "150 File status okay; about to open data connection. Opening BINARY mode data connection for %s (%d bytes).\n", fname, fs_total);
         fdsend(newsockfd, msg);
 
         bzero(sdbuf, BUFF_SIZE * 2);
@@ -373,11 +373,11 @@ int retr(char *fname) {
         pasvnewsockfd = -1;
 
         bzero(msg, sizeof msg);
-        strcpy(msg, "226 Transfer complete.\n");
+        strcpy(msg, "226 Closing data connection. Transfer complete.\n");
         fdsend(newsockfd, msg);
       } else{
         bzero(msg, sizeof msg);
-        strcpy(msg, "550 Failed to open file.\n");
+        strcpy(msg, "550 Requested action not taken. Failed to open file.\n");
         fdsend(newsockfd, msg);
       }
     }
