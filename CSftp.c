@@ -330,7 +330,7 @@ int retr(char *fname) {
   int bytes_read;
   FILE *fs;
   int fs_block_size;
-  byte sdbuf[BUFF_SIZE * 2];
+  char sdbuf[BUFF_SIZE * 2];
   int fs_total;
 
   if (pasv_called == 0){
@@ -361,7 +361,7 @@ int retr(char *fname) {
             printf("error | server: (PASV) sending data\n");
           }
           */
-          if (write(pasvsockfd, sdbuf, fs_block_size) < 0){
+          if (write(pasvnewsockfd, sdbuf, fs_block_size) < 0){
             printf("error | server: (PASV) sending data\n");
           }
           bzero(sdbuf, BUFF_SIZE * 2);
