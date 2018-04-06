@@ -25,6 +25,7 @@ int retr(char *);
 int nlst(char *);
 
 int newsockfd;
+int pasvsockfd = -1;
 int pasvnewsockfd = -1;
 int pasv_called = 0;
 char init_dir[BUFF_SIZE];
@@ -203,7 +204,6 @@ void *pasv_connection(int pasvsockfd){
 int pasv() {
   printf("info | server: called PASV func\n");
   struct sockaddr_in pasv_serv_addr;
-  int pasvsockfd;
   int pasv_port;
   struct sockaddr_in sa;
   int sa_len;
@@ -313,7 +313,9 @@ int nlst(char *path) {
 
     pasv_called = 0;
     close(pasvnewsockfd);
+    close(pasvsockfd);
     pasvnewsockfd = -1;
+    pasvsockfd = -1;
 
     bzero(msg, sizeof msg);
     strcpy(msg, "226 Directory send OK. Closing data connection. Requested file action successful.\n");
@@ -365,7 +367,9 @@ int retr(char *fname) {
 
         pasv_called = 0;
         close(pasvnewsockfd);
+        close(pasvsockfd);
         pasvnewsockfd = -1;
+        pasvsockfd = -1;
 
         bzero(msg, sizeof msg);
         strcpy(msg, "226 Closing data connection. Transfer complete.\n");
