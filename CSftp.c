@@ -293,22 +293,23 @@ int nlst(char *path) {
   char dir[BUFF_SIZE];
   char msg[BUFF_SIZE];
 
+  if (path != NULL){
+    strcpy(msg, "501 NLST doesn't support argument.\n");
+    fdsend(newsockfd, msg);
+    return 0;
+  }
+
   if (pasv_called == 0){
     strcpy(msg, "425 Can't open data connection. Use PASV first.\n");
     fdsend(newsockfd, msg);
   } else {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
 
-    if (path == NULL){
-      getcwd(dir, BUFF_SIZE);
-    } else {
-      strcpy(dir, path);
-    }
-
     bzero(msg, sizeof msg);
     strcpy(msg, "150 File status okay; about to open data connection. Here comes the directory listing.\n");
     fdsend(newsockfd, msg);
 
+    getcwd(dir, BUFF_SIZE);
     listFiles(pasvnewsockfd, dir);
 
     pasv_called = 0;
@@ -335,7 +336,6 @@ int retr(char *fname) {
 
   if (pasv_called == 0){
     send(newsockfd, "425 Can't open data connection. Use PASV first.\n", 48, 0);
-
   } else{
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
     printf("info | server: (PASV) connection is established.\n");
