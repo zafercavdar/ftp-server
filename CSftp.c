@@ -363,19 +363,12 @@ int retr(char *fname) {
         }
         close(fs);
 
-<<<<<<< Updated upstream
-=======
-        bzero(msg, sizeof msg);
-        strcpy(msg, "226 Closing data connection. Transfer complete.\n");
-        fdsend(newsockfd, msg);
-
->>>>>>> Stashed changes
         pasv_called = 0;
         close(pasvnewsockfd);
         pasvnewsockfd = -1;
 
         bzero(msg, sizeof msg);
-        strcpy(msg, "226 Transfer complete.\n");
+        strcpy(msg, "226 Closing data connection. Transfer complete.\n");
         fdsend(newsockfd, msg);
       } else{
         bzero(msg, sizeof msg);
