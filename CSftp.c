@@ -363,13 +363,13 @@ int retr(char *fname) {
         }
         close(fs);
 
-        bzero(msg, sizeof msg);
-        strcpy(msg, "226 Transfer complete.\n");
-        fdsend(newsockfd, msg);
-
         pasv_called = 0;
         close(pasvnewsockfd);
         pasvnewsockfd = -1;
+
+        bzero(msg, sizeof msg);
+        strcpy(msg, "226 Transfer complete.\n");
+        fdsend(newsockfd, msg);
       } else{
         bzero(msg, sizeof msg);
         strcpy(msg, "550 Failed to open file.\n");
