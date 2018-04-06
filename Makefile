@@ -41,3 +41,6 @@ clean:
 .PHONY: run
 run: CSftp
 	./CSftp $(RUN_ARGS)
+
+valgrind: CSftp
+	valgrind --leak-check=yes ./CSftp $(RUN_ARGS)
