@@ -356,11 +356,6 @@ int retr(char *fname) {
         bzero(sdbuf, BUFF_SIZE * 2);
         while((fs_block_size = fread(sdbuf, sizeof(char), BUFF_SIZE * 2, fs)) > 0){
           printf("info | server: (PASV) fs_block_size: %d\n", fs_block_size);
-          /*
-          if (send(pasvnewsockfd, sdbuf, fs_block_size, 0) < 0){
-            printf("error | server: (PASV) sending data\n");
-          }
-          */
           if (write(pasvnewsockfd, sdbuf, fs_block_size) < 0){
             printf("error | server: (PASV) sending data\n");
           }
