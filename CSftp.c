@@ -184,15 +184,16 @@ int quit() {
   return -1;
 }
 
-void *pasv_connection(int pasvsockfd){
+void *pasv_connection(void *pasvsockfd){
   struct sockaddr_in pasv_cli_addr;
   int pasvclilen;
+  int *psfd = ((int *) pasvsockfd);
   printf("info | server: (PASV) started listening\n");
-  listen(pasvsockfd, 5);
+  listen(*psfd, 5);
 
   printf("info | server: (PASV) accepting connections\n");
   pasvclilen = sizeof(pasv_cli_addr);
-  pasvnewsockfd = accept(pasvsockfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
+  pasvnewsockfd = accept(*psfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
   if (pasvnewsockfd < 0) {
     printf("error | server: (PASV) accept\n");
   }
@@ -238,7 +239,7 @@ int pasv() {
   }
 
   sa_len = sizeof(sa);
-  getsockname(pasvsockfd, &sa, &sa_len);
+  getsockname(pasvsockfd, (struct sockaddr *) &sa, &sa_len);
   pasv_port = (int) ntohs(sa.sin_port);
 
   gethostname(hostname, sizeof hostname);
@@ -280,7 +281,7 @@ int pasv() {
 
   pasv_called = 1;
 
-  if(pthread_create(&pasv_thread, NULL, pasv_connection, pasvsockfd)) {
+  if(pthread_create(&pasv_thread, NULL, pasv_connection, (void *) &pasvsockfd)) {
     printf("error | server: (PASV) creating thread\n");
     exit(-1);
   }
@@ -361,7 +362,7 @@ int retr(char *fname) {
           }
           bzero(sdbuf, BUFF_SIZE * 2);
         }
-        close(fs);
+        fclose(fs);
 
         pasv_called = 0;
         close(pasvnewsockfd);
