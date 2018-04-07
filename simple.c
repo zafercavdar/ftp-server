@@ -70,13 +70,13 @@ int type(int fd, char *rept) {
   char msg[BUFF_SIZE];
 
   if (rept == NULL) {
-    strcpy(msg, "500 Syntax error, unrecognised TYPE command.\n");
+    strcpy(msg, "501 Syntax error, unrecognised TYPE command.\n");
   } else if (strcasecmp(rept, "I") == 0) {
     strcpy(msg, "200 Command okay. Switching to Binary mode.\n");
   } else if (strcasecmp(rept, "A") == 0){
     strcpy(msg, "200 Command okay. Switching to ASCII mode.\n");
   } else {
-    strcpy(msg, "500 Syntax error, unrecognised TYPE command.\n");
+    strcpy(msg, "501 Syntax error, unrecognised TYPE command.\n");
   }
 
   fdsend(fd, msg);
@@ -88,7 +88,7 @@ int mode(int fd, char *transm) {
   char msg[BUFF_SIZE];
 
   if (transm == NULL){
-    strcpy(msg, "504 Bad MODE command.\n");
+    strcpy(msg, "501 Bad MODE command.\n");
   } else if (strcasecmp(transm, "S") == 0){
     strcpy(msg, "200 Command okay. Mode set to S.\n");
   } else if (strcasecmp(transm, "B") == 0){
@@ -96,7 +96,7 @@ int mode(int fd, char *transm) {
   } else if (strcasecmp(transm, "C") == 0){
     strcpy(msg, "504 MODE Compressed is not supported.\n");
   } else {
-    strcpy(msg, "504 Bad MODE command.\n");
+    strcpy(msg, "501 Bad MODE command.\n");
   }
 
   fdsend(fd, msg);
@@ -108,7 +108,7 @@ int stru(int fd, char *filestrt) {
   char msg[BUFF_SIZE];
 
   if (filestrt == NULL){
-    strcpy(msg, "504 Bad STRU command.\n");
+    strcpy(msg, "501 Bad STRU command.\n");
   } else if (strcasecmp(filestrt, "F") == 0){ // FILE
     strcpy(msg, "200 Command okay. Structure set to F.\n");
   } else if (strcasecmp(filestrt, "R") == 0){ // RECORD
@@ -116,7 +116,7 @@ int stru(int fd, char *filestrt) {
   } else if (strcasecmp(filestrt, "P") == 0){ // PAGE
     strcpy(msg, "504 STRU Page is not supported.\n");
   } else {
-    strcpy(msg, "504 Bad STRU command.\n");
+    strcpy(msg, "501 Bad STRU command.\n");
   }
 
   fdsend(fd, msg);

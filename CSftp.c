@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <pthread.h>
 #include <netdb.h>
 
@@ -24,11 +25,18 @@ int pasv();
 int retr(char *);
 int nlst(char *);
 
-int newsockfd;
+int sockfd, newsockfd;
 int pasvsockfd = -1;
 int pasvnewsockfd = -1;
 int pasv_called = 0;
 char init_dir[BUFF_SIZE];
+
+void terminate(int signum){
+  close(sockfd);
+  close(newsockfd);
+  close(pasvsockfd);
+  close(pasvnewsockfd);
+}
 
 int main(int argc, char **argv) {
 
@@ -36,8 +44,13 @@ int main(int argc, char **argv) {
 
     int port;
     struct sockaddr_in serv_addr, cli_addr;
-    int sockfd, clilen;
+    int clilen;
     char buffer[BUFF_SIZE];
+
+    struct sigaction action;
+    memset(&action, 0, sizeof(struct sigaction));
+    action.sa_handler = terminate;
+    sigaction(SIGTERM, &action, NULL);
 
     // Check the command line arguments
     if (argc != 2) {
@@ -177,7 +190,7 @@ int parse_command(char *str) {
 int quit() {
   printf("info | server: called QUIT func\n");
   logout();
-  char msg[] = "221 Service closing control connection.\n";
+  char msg[] = "221 Good bye.Closing control connection.\n";
   fdsend(newsockfd, msg);
   pasv_called = 0;
   pasvnewsockfd = -1;
