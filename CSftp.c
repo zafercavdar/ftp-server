@@ -202,17 +202,43 @@ void *pasv_connection(void *pasvsockfd){
   struct sockaddr_in pasv_cli_addr;
   int pasvclilen;
   int *psfd = ((int *) pasvsockfd);
-  printf("info | server: (PASV) started listening\n");
+  char msg[BUFF_SIZE];
+
   listen(*psfd, 5);
+  printf("info | server: (PASV) started listening\n");
 
-  printf("info | server: (PASV) accepting connections\n");
-  pasvclilen = sizeof(pasv_cli_addr);
-  pasvnewsockfd = accept(*psfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
-  if (pasvnewsockfd < 0) {
-    printf("error | server: (PASV) accept\n");
+  fd_set rfds;
+  struct timeval tv;
+  int retval;
+  FD_ZERO(&rfds);
+  FD_SET(*psfd, &rfds);
+
+  /* Wait up to 20 seconds. */
+  tv.tv_sec = 20;
+  tv.tv_usec = 0;
+  retval = select(*psfd + 1, &rfds, NULL, NULL, &tv);
+  if (retval == -1){
+    printf("error | server: (PASV) error on select\n");
+  } else if (retval){
+      if (FD_ISSET(*psfd, &rfds)){
+        printf("info | server: (PASV) accepting connections\n");
+        pasvclilen = sizeof(pasv_cli_addr);
+        pasvnewsockfd = accept(*psfd, (struct sockaddr *) &pasv_cli_addr, &pasvclilen);
+        if (pasvnewsockfd < 0) {
+          printf("error | server: (PASV) accept\n");
+        }
+        printf("info | server: (PASV) connection is established\n");
+      }
+  } else {
+    printf("error | server: (PASV) timeout on dataconnection\n");
+    pasv_called = 0;
+    close(pasvnewsockfd);
+    close(*psfd);
+    pasvnewsockfd = -500; // for timeout
+    *psfd = -1;
+    strcpy(msg, "500 Timeout on data conection\n");
+    fdsend(newsockfd, msg);
   }
-  printf("info | server: (PASV) connection is established\n");
-
 }
 
 int pasv() {
@@ -314,10 +340,16 @@ int nlst(char *path) {
   }
 
   if (pasv_called == 0){
-    strcpy(msg, "425 Can't open data connection. Use PASV first.\n");
+    strcpy(msg, "425 Data connection is not open. Use PASV first.\n");
     fdsend(newsockfd, msg);
   } else {
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
+
+    if (pasvnewsockfd < 0){
+      printf("error | server: NLST received timeout on data connection. returning ..\n");
+      pasvnewsockfd = -1;
+      return 0;
+    }
 
     bzero(msg, sizeof msg);
     strcpy(msg, "150 File status okay; about to open data connection. Here comes the directory listing.\n");
@@ -351,9 +383,17 @@ int retr(char *fname) {
   int fs_total;
 
   if (pasv_called == 0){
-    send(newsockfd, "425 Can't open data connection. Use PASV first.\n", 48, 0);
+    strcpy(msg, "425 Data connection is not open. Use PASV first.\n");
+    fdsend(newsockfd, msg);
   } else{
     while(pasvnewsockfd == -1); // wait until client is connected to pasv port.
+
+    if (pasvnewsockfd < 0){
+      printf("error | server: RETR received timeout on data connection. returning ..\n");
+      pasvnewsockfd = -1;
+      return 0;
+    }
+
     printf("info | server: (PASV) connection is established.\n");
     if (fname == NULL){
       bzero(msg, sizeof msg);
